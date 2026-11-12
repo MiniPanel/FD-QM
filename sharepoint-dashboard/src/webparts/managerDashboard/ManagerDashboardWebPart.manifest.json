@@ -1,0 +1,19 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "0ddba5f0-b685-4ca0-8aa1-7f521726a8f4",
+  "alias": "ManagerDashboardWebPart",
+  "componentType": "WebPart",
+  "version": "0.1.0",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+  "preconfiguredEntries": [{
+    "groupId": "1edbd9a8-0bfb-4aa2-9afd-14b8c5e1b5b5",
+    "group": { "default": "Business and data" },
+    "title": { "default": "CDAX case overview" },
+    "description": { "default": "Read-only manager dashboard for CDAX follow-up cases" },
+    "officeFabricIconFontName": "ViewDashboard",
+    "properties": { "listName": "CDAX Follow-up Cases" }
+  }]
+}

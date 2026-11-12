@@ -1,0 +1,30 @@
+{
+  "name": "cdax-followup-manager-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "engines": { "node": ">=18.17.1 <19.0.0" },
+  "scripts": {
+    "build": "gulp bundle",
+    "clean": "gulp clean",
+    "test": "gulp test"
+  },
+  "dependencies": {
+    "@microsoft/sp-core-library": "1.20.0",
+    "@microsoft/sp-webpart-base": "1.20.0",
+    "@microsoft/sp-lodash-subset": "1.20.0",
+    "@microsoft/sp-http": "1.20.0",
+    "@microsoft/sp-property-pane": "1.20.0",
+    "@fluentui/react": "8.122.7",
+    "react": "17.0.1",
+    "react-dom": "17.0.1"
+  },
+  "devDependencies": {
+    "@microsoft/rush-stack-compiler-4.7": "0.1.0",
+    "@microsoft/sp-build-web": "1.20.0",
+    "@microsoft/sp-tslint-rules": "1.20.0",
+    "@types/react": "17.0.45",
+    "@types/react-dom": "17.0.17",
+    "gulp": "4.0.2",
+    "typescript": "4.7.4"
+  }
+}

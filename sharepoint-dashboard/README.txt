@@ -1,0 +1,1 @@
+This is a SharePoint Framework (SPFx) project source scaffold for a read-only dashboard over the CDAX Follow-up Cases list. See README.md for expected list columns and deployment notes. Requires the standard SPFx generator configuration and tenant App Catalog deployment before it can be added to a SharePoint page.
