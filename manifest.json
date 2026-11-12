@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "CDAX Follow-up Bot",
+  "version": "1.12.0",
+  "description": "Monitors a CDAX queue, respects the WhatsApp 24-hour window, sends 2 scheduled follow-ups, and detects customer responses.",
+  "permissions": ["tabs", "scripting", "storage", "unlimitedStorage", "alarms", "notifications"],
+  "host_permissions": ["https://hpcdax.crm.dynamics.com/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "Open CDAX Follow-up Bot" },
+  "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" }
+}

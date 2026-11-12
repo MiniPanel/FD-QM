@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CDAX Follow-up Bot</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header>
+    <h1>CDAX Follow-up Bot <span class="phase">Production</span> <span id="appVersion" class="muted"></span></h1>
+    <div class="conn"><span id="connDot" class="dot off"></span><span id="connText">Not connected</span></div>
+  </header>
+
+  <section class="info">
+    <div class="queuepick">
+      <span class="label">Queue</span> <b id="queueName">-</b>
+      <button type="button" id="btnChangeQueue" class="small">Change queue</button>
+    </div>
+    <div><span class="label">Signed in as</span> <b id="userName">-</b></div>
+    <div><span class="label">Last refresh</span> <b id="lastRefresh">-</b> <span id="nextRefresh" class="muted"></span></div>
+    <div><span class="label">Automation engine</span> <b id="engineStatus">-</b></div>
+  </section>
+
+  <section class="settings" aria-label="Automation settings">
+    <label>Interval between follow-ups (new sequences)
+      <select id="setInterval"></select>
+    </label>
+    <label>Send from (CDAX queue mailbox)
+      <input id="setSender" type="text" placeholder="HPservicessupport">
+    </label>
+    <button type="button" id="btnSaveSettings" class="primary">Save</button>
+    <label class="chk"><input type="checkbox" id="setAuto"> Auto-start follow-ups when a case is added to the queue</label>
+    <label class="chk"><input type="checkbox" id="setRemove"> Remove finished cases from the queue (customer responded, new chat/call, Ready for closure) - they stay on this dashboard</label>
+    <span class="tplbar">
+      <button type="button" id="btnTemplates">Edit email templates</button>
+      <span id="tplState" class="muted"></span>
+    </span>
+    <span class="tplbar">
+      <button type="button" id="btnBackup">Export backup</button>
+      <button type="button" id="btnRestore">Import backup</button>
+      <input type="file" id="restoreFile" accept=".json,application/json" class="hidden">
+    </span>
+    <span id="modeBadge" class="modebadge live">LIVE - follow-up emails go to customers</span>
+  </section>
+
+  <!-- Status buttons: click to show only those cases -->
+  <section class="cards" role="group" aria-label="Filter cases by status">
+    <button type="button" class="card fbtn" data-filter="all" aria-pressed="true"><span class="label">All cases</span><span id="cAll" class="value">0</span></button>
+    <button type="button" class="card fbtn" data-filter="inqueue" aria-pressed="false"><span class="label">In queue</span><span id="cInQueue" class="value">0</span></button>
+    <button type="button" class="card warn fbtn" data-filter="none" aria-pressed="false"><span class="label">Waiting to start</span><span id="cAwaiting" class="value">0</span></button>
+    <button type="button" class="card info2 fbtn" data-filter="progress" aria-pressed="false"><span class="label">Follow-ups in progress</span><span id="cProgress" class="value">0</span></button>
+    <button type="button" class="card ok fbtn" data-filter="responded" aria-pressed="false"><span class="label">Customer responded</span><span id="cResponded" class="value">0</span></button>
+    <button type="button" class="card purple fbtn" data-filter="newcontact" aria-pressed="false"><span class="label">New chat / call</span><span id="cNewContact" class="value">0</span></button>
+    <button type="button" class="card info2 fbtn" data-filter="done" aria-pressed="false"><span class="label">2 follow-ups done</span><span id="cDone" class="value">0</span></button>
+    <button type="button" class="card bad fbtn" data-filter="ready" aria-pressed="false"><span class="label">Ready for closure</span><span id="cReady" class="value">0</span></button>
+    <button type="button" class="card amber fbtn" data-filter="noemail" aria-pressed="false"><span class="label">No email address</span><span id="cNoEmail" class="value">0</span></button>
+    <button type="button" class="card grey fbtn" data-filter="removed" aria-pressed="false"><span class="label">Removed from queue</span><span id="cRemoved" class="value">0</span></button>
+    <button type="button" class="card fbtn" data-filter="other" aria-pressed="false"><span class="label">Stopped / error</span><span id="cOther" class="value">0</span></button>
+  </section>
+
+  <section class="controls">
+    <button type="button" id="btnToggle">Pause refresh</button>
+    <button type="button" id="btnRefresh">Refresh now</button>
+    <button type="button" id="btnAck">Mark all as seen</button>
+    <button type="button" id="btnHistory" class="primary">History</button>
+    <button type="button" id="btnLog" aria-expanded="false" aria-controls="logSection">Show activity log</button>
+    <span id="filterInfo" class="muted" aria-live="polite"></span>
+  </section>
+
+  <div id="banner" class="banner hidden" role="status" aria-live="polite"></div>
+  <div id="error" class="error hidden" role="alert"></div>
+
+  <section class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th></th><th>Case number</th><th>Customer</th><th>Case status</th><th>Owner</th>
+          <th>Entered queue</th><th>Template</th><th>Follow-ups</th><th>Next step</th><th>Automation status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div id="empty" class="empty">No cases to show.</div>
+  </section>
+
+  <section class="logwrap hidden" id="logSection">
+    <h2>Activity log</h2>
+    <ul id="log"></ul>
+  </section>
+
+  <!-- Manual start dialog (only used when auto-start is OFF) -->
+  <dialog id="setupDlg" aria-labelledby="dlgTitle">
+    <form id="setupForm" method="dialog">
+      <h2 id="dlgTitle">Start follow-ups - Case <span id="dlgCase"></span></h2>
+      <div id="dlgLoading" class="muted">Loading case details...</div>
+      <div id="dlgBody" class="hidden">
+        <div class="tplpick">
+          <span class="label">Template</span>
+          <label class="tploption selected"><input type="radio" name="tpl" value="generic" checked> <b id="dlgTplName"></b> (2 emails, <span id="dlgInterval"></span> apart)</label>
+        </div>
+        <div class="grid2">
+          <label>Send to (customer)
+            <select id="dlgRecipientSel"></select>
+          </label>
+          <label>Customer email
+            <input id="dlgEmail" type="email" readonly>
+          </label>
+          <label>Customer name used in the greeting
+            <input id="dlgName" type="text" required>
+          </label>
+          <label>Case owner
+            <input id="dlgOwner" type="text" readonly>
+          </label>
+        </div>
+        <div id="dlgModeNote" class="modenote"></div>
+        <div id="dlgSender" class="muted"></div>
+        <div class="previewtabs" role="tablist">
+          <button type="button" data-n="1" class="tab active">Email 1</button>
+          <button type="button" data-n="2" class="tab">Email 2 (final)</button>
+        </div>
+        <div class="preview">
+          <div class="psubj"><span class="label">Subject</span> <span id="pSubject"></span></div>
+          <div id="pBody" class="pbody"></div>
+        </div>
+        <div id="dlgError" class="error hidden" role="alert"></div>
+      </div>
+      <div class="dlgbtns">
+        <button type="button" id="dlgCancel">Cancel</button>
+        <button type="button" id="dlgConfirm" class="primary" disabled>Confirm &amp; start follow-ups</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Template editor dialog -->
+  <dialog id="tplDlg" aria-labelledby="tplTitle">
+    <h2 id="tplTitle">Follow-up email templates</h2>
+    <p class="muted">These 2 emails are used for cases that came in on WhatsApp (or have no chat). Cases from any other channel, e.g. Live chat, get the built-in "chat got disconnected" email instead. Placeholders:
+      <code>{{customerName}}</code> <code>{{caseNumber}}</code> <code>{{waitText}}</code> (the interval, e.g. "24 hours").
+      The signature (closing line, the case owner's name, "HP Support") is added automatically.</p>
+    <div class="previewtabs" role="tablist">
+      <button type="button" data-t="1" class="tab tpltab active">Email 1</button>
+      <button type="button" data-t="2" class="tab tpltab">Email 2 (final)</button>
+    </div>
+    <div class="tplform">
+      <label>Subject (the [Follow-up n/2] tag is added automatically)
+        <input id="tplSubject" type="text">
+      </label>
+      <label>Body (leave a blank line between paragraphs)
+        <textarea id="tplBody" rows="10"></textarea>
+      </label>
+      <label>Closing line
+        <input id="tplClosing" type="text" placeholder="Warm regards,">
+      </label>
+    </div>
+    <div class="preview">
+      <div class="psubj"><span class="label">Preview</span> <span id="tplPSubject"></span></div>
+      <div id="tplPBody" class="pbody"></div>
+    </div>
+    <div id="tplError" class="error hidden" role="alert"></div>
+    <div class="dlgbtns">
+      <button type="button" id="tplReset" class="danger">Reset to default</button>
+      <span class="spacer"></span>
+      <button type="button" id="tplCancel">Cancel</button>
+      <button type="button" id="tplSave" class="primary">Save templates</button>
+    </div>
+  </dialog>
+
+  <!-- History dialog -->
+  <dialog id="histDlg" class="wide" aria-labelledby="histTitle">
+    <h2 id="histTitle">History - all cases handled by the bot</h2>
+    <div class="histbar">
+      <label class="qsearch grow">Search (case number, customer, owner, queue)
+        <input id="histSearch" type="search" placeholder="Type to filter">
+      </label>
+      <label class="qsearch">Result
+        <select id="histFilter">
+          <option value="all">All</option>
+          <option value="responded">Customer responded</option>
+          <option value="noresponse">No response</option>
+          <option value="newcontact">New chat / call</option>
+          <option value="ready">Ready for closure</option>
+          <option value="removed">Removed from queue</option>
+          <option value="active">Still in progress</option>
+          <option value="noemail">No email address</option>
+          <option value="stopped">Stopped / error</option>
+        </select>
+      </label>
+      <button type="button" id="histCsv">Export CSV</button>
+    </div>
+    <div id="histSummary" class="muted"></div>
+    <div class="tablewrap histwrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case number</th><th>Customer</th><th>Owner</th><th>Queue</th><th>Added</th>
+            <th>Follow-ups sent</th><th>Customer responded</th><th>Final status</th><th>Last action</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="histRows"></tbody>
+      </table>
+      <div id="histEmpty" class="empty hidden">No history yet.</div>
+    </div>
+    <div class="dlgbtns"><button type="button" id="histClose">Close</button></div>
+  </dialog>
+
+  <!-- Queue picker dialog -->
+  <dialog id="queueDlg" aria-labelledby="qdTitle">
+    <h2 id="qdTitle">Select the queue to monitor</h2>
+    <label class="qsearch">Search queues by name
+      <input id="qdSearch" type="search" placeholder="Type part of the queue name">
+    </label>
+    <div id="qdStatus" class="muted" aria-live="polite"></div>
+    <ul id="qdList" class="qlist" role="listbox" aria-label="Queues"></ul>
+    <p class="muted">Follow-ups already running keep going in their own queue. The dashboard shows the selected queue's cases.</p>
+    <div class="dlgbtns"><button type="button" id="qdClose">Cancel</button></div>
+  </dialog>
+
+  <!-- Timeline dialog -->
+  <dialog id="tlDlg" aria-labelledby="tlTitle">
+    <h2 id="tlTitle">Timeline - Case <span id="tlCase"></span></h2>
+    <ul id="tlList" class="timeline"></ul>
+    <div class="dlgbtns"><button type="button" id="tlClose">Close</button></div>
+  </dialog>
+
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>
